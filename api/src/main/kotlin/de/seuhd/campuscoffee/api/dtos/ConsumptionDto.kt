@@ -7,4 +7,5 @@ package de.seuhd.campuscoffee.api.dtos
 data class ConsumptionDto(
     val loginName: String,
     val count: Int
+    val balanceCents: Int
 )

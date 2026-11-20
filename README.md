@@ -7,8 +7,8 @@
 
 Coffee Kitty counts the coffees that the users in a group drink from a shared coffee machine. The group buys new coffee
 beans from a shared cash box, the kitty. A user can also buy coffee with their own money and declare the purchase as an
-expense. So far, the app is a minimal REST API that stores users and their coffee counts, which grow by one coffee at a
-time. Prices, payments, expenses, a user interface, and authentication are still missing.
+expense. So far, the app is a minimal REST API that stores users and their coffee counts, which change by one coffee at
+a time. Prices, payments, expenses, a user interface, and authentication are still missing.
 
 Coffee Kitty is the running example of a software engineering course at Heidelberg University. Students first see the
 app in the lectures on agentic software engineering and extend it over the semester, for example with a price per cup
@@ -22,10 +22,15 @@ layer rules that ArchUnit enforces, but Coffee Kitty has only two entities: user
   digits, and underscores. Login names and email addresses are unique. The app stores every email address trimmed and
   in lowercase.
 - Every user has one consumption, which holds the user's coffee count. When the app creates a user, it also creates
-  the consumption with a coffee count of zero. Adding a coffee raises the coffee count by one, and no endpoint lowers
-  it. When two requests add a coffee for the same user at the same time, both coffees count.
-- The REST API accepts and returns only JSON. Any client can call every endpoint, because Coffee Kitty has no
-  authentication.
+  the consumption with a coffee count of zero. Adding a coffee raises the coffee count by one. When two requests add a
+  coffee for the same user at the same time, both coffees count.
+- Within the grace period of 5 minutes after adding a coffee, a user can undo it, which lowers the coffee count by one.
+  After an undo, the coffee before is the most recent coffee, which the user can undo while it is within its own grace
+  period. The requirement is FR-3 in `requirements/FR-3-undo-coffee.md`.
+- Every user has a role, `USER` or `ADMIN`. Only an admin may create a user. Coffee Kitty has no authentication yet: The
+  header `X-Acting-User` of a request contains the login name of the acting user, and any client can act as any user.
+  The fixture user `jane_doe` is an admin.
+- The REST API accepts and returns only JSON.
 - A Spring Boot backend in Kotlin stores the users and their coffee counts in PostgreSQL through Jakarta Persistence
   (JPA). Flyway migrations define the database schema.
 
@@ -49,7 +54,7 @@ in detail, and `GLOSSARY.md` defines the terms of the project.
 
 ## Prerequisites
 
-- Java 25 and Gradle 9.8, which [mise](https://mise.jdx.dev/) installs from `mise.toml`. The repository has no Gradle
+- Java 25 and Gradle 9.9, which [mise](https://mise.jdx.dev/) installs from `mise.toml`. The repository has no Gradle
   wrapper.
 - Docker, for the local PostgreSQL database and for the tests that use Testcontainers.
 
@@ -123,7 +128,7 @@ another Gradle version, ignore the offer and select the local installation.
    The optional [mise plugin](https://plugins.jetbrains.com/plugin/24904-mise) sets this SDK from `mise.toml`.
 
 2. Under `Settings` -> `Build, Execution, Deployment` -> `Build Tools` -> `Gradle`, set `Distribution` to
-   `Local installation`. As `Location`, enter the `gradle-9.8.x` directory that contains `bin` and `lib`. The
+   `Local installation`. As `Location`, enter the `gradle-9.9.x` directory that contains `bin` and `lib`. The
    following command prints the path of this directory:
 
    ```shell
@@ -145,9 +150,10 @@ and the system and acceptance tests create the same users before each test.
 
 ## REST API
 
-The paths in this section are relative to `/api`, and Swagger UI documents every endpoint. Each command requires the
-app to run in the `dev` profile on port 8081. Because the ids change with every restart, a command that needs an id
-first looks up the id of the fixture user `jane_doe` with `python3`.
+The paths in this section are relative to `/api`, and Swagger UI documents every endpoint. Each command requires the app
+to run in the `dev` profile on port 8081. Because the ids change with every restart, a command that needs an id first
+looks up the id of the fixture user `jane_doe` with `python3`. A request with an unknown login name in the header
+`X-Acting-User` gets 401 Unauthorized on every route.
 
 `GET /users` returns all users as a JSON array, ordered by login name:
 
@@ -155,12 +161,22 @@ first looks up the id of the fixture user `jane_doe` with `python3`.
 curl http://localhost:8081/api/users
 ```
 
-`POST /users` with `{ "loginName", "emailAddress", "firstName", "lastName" }` creates a user with a coffee count of
-zero and returns 201 Created with the new user and a `Location` header. The endpoint returns 400 Bad Request for a
-missing or malformed field or an `id` in the body, and 409 Conflict when the login name or the email address is taken:
+`POST /users` with `{ "loginName", "emailAddress", "firstName", "lastName" }` and an optional `"role"` creates a user
+with a coffee count of zero and returns 201 Created with the new user and a `Location` header. Only an admin may create
+a user. The header `X-Acting-User` has to contain the login name of an admin. The endpoint returns 401 Unauthorized
+without the header or for an unknown login name, 403 Forbidden when the acting user is not an admin, 400 Bad Request for
+a missing or malformed field or an `id` in the body, and 409 Conflict when the login name or the email address is taken.
+Because a filter checks the acting user before the controller reads the body, a request without a known acting user gets
+401 even with an invalid body. Every 401 has the header `WWW-Authenticate: X-Acting-User realm="Coffee Kitty"`, as RFC
+9110 requires. In the `dev` profile, the fixture loader creates `jane_doe` as an admin. When no admin exists, the app
+stores a bootstrap admin on startup from the environment variables `BOOTSTRAP_ADMIN_LOGIN_NAME` and
+`BOOTSTRAP_ADMIN_EMAIL_ADDRESS` (optional: `BOOTSTRAP_ADMIN_FIRST_NAME` and `BOOTSTRAP_ADMIN_LAST_NAME`). If a user has
+that login name, the app gives that user the role `ADMIN`. This case occurs after the migration V4, which gives every
+existing user, `jane_doe` included, the role `USER` in a database that the `dev` profile does not reset. The command
+creates the user `ada_lovelace` as the admin `jane_doe`:
 
 ```shell
-curl --include --request POST --header "Content-Type: application/json" \
+curl --include --request POST --header "Content-Type: application/json" --header "X-Acting-User: jane_doe" \
   --data '{"loginName":"ada_lovelace","emailAddress":"ada.lovelace@example.com","firstName":"Ada","lastName":"Lovelace"}' \
   http://localhost:8081/api/users
 ```
@@ -194,11 +210,23 @@ curl --request POST --header "Content-Type: application/json" --data '{"delta":1
   http://localhost:8081/api/users/$USER_ID/consumption
 ```
 
-Both consumption endpoints return 404 Not Found for an unknown user. An error response has a JSON body with the fields
-`errorCode`, `message`, `statusCode`, `statusMessage`, `timestamp`, and `path`. For a domain exception, `errorCode` is
-the class name of the exception: `NotFoundException`, `DuplicationException`, or `ValidationException`. For any other
-error, `errorCode` is the reason phrase of the status without spaces, such as `BadRequest`. Every timestamp in a
-response is in UTC and has no offset.
+`POST /users/{userId}/consumption/undo` undoes the most recent coffee of the user and returns the new coffee count as
+`{ "loginName", "count" }`. The endpoint returns 409 Conflict when the user has no coffee to undo or when the grace
+period of the most recent coffee that is not undone has passed. The environment variable
+`CAMPUS_COFFEE_GRACE_PERIOD` sets the grace period, 5 minutes by default, as in
+`CAMPUS_COFFEE_GRACE_PERIOD=10m`. Run the command within the grace period after the command that adds a coffee:
+
+```shell
+USER_ID=$(curl -s http://localhost:8081/api/users |
+  python3 -c 'import json, sys; print(next(u["id"] for u in json.load(sys.stdin) if u["loginName"] == "jane_doe"))')
+curl --request POST http://localhost:8081/api/users/$USER_ID/consumption/undo
+```
+
+The three consumption endpoints return 404 Not Found for an unknown user. An error response has a JSON body with the
+fields `errorCode`, `message`, `statusCode`, `statusMessage`, `timestamp`, and `path`. For a domain exception,
+`errorCode` is the class name of the exception: `NotFoundException`, `DuplicationException`, `ConflictException`,
+`ForbiddenException`, or `ValidationException`. For any other error, `errorCode` is the reason phrase of the status
+without spaces, such as `BadRequest`. Every timestamp in a response is in UTC and has no offset.
 
 ## Testing
 

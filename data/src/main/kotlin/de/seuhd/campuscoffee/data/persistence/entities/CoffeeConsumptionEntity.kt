@@ -33,6 +33,9 @@ class CoffeeConsumptionEntity : Entity() {
     @field:Column(name = "added_at")
     var coffeeTimes: MutableList<LocalDateTime> = mutableListOf()
 
+    @field:Column(name="balance_cents")
+    var balance_cents: Int? = null
+
     companion object {
         /** Name of the unique constraint on `user_id`. */
         const val USER_UNIQUE_CONSTRAINT = "uq_coffee_consumptions_user"

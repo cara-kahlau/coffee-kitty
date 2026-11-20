@@ -21,4 +21,7 @@ data class CoffeeConsumption(
     val user: User,
     val count: Int,
     val coffeeTimes: List<LocalDateTime> = emptyList()
+    val balanceCents: Int = 0
 ) : DomainModel<UUID>
+
+

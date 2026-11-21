@@ -43,9 +43,9 @@ class ConsumptionSystemTests : AbstractSystemTest() {
     @Test
     fun `adding a coffee lowers the balance from zero by the price of a coffee`() {
         assertThat(consumption().balanceCents).isEqualTo(0)
-    
+
         val response = ConsumptionRequests.applyDelta(fixtureUserId(), ConsumptionDeltaDto(1))
-    
+
         assertThat(response.status).isEqualTo(200)
         assertThat(response.body.balanceCents).isEqualTo(-COFFEE_PRICE_CENTS)
     }
@@ -54,10 +54,10 @@ class ConsumptionSystemTests : AbstractSystemTest() {
     fun `adding two coffees lowers the balance by twice the price`() {
         ConsumptionRequests.applyDelta(fixtureUserId(), ConsumptionDeltaDto(1)).requireStatus(200)
         ConsumptionRequests.applyDelta(fixtureUserId(), ConsumptionDeltaDto(1)).requireStatus(200)
-    
+
         assertThat(consumption().balanceCents).isEqualTo(-2 * COFFEE_PRICE_CENTS)
     }
-    
+
     @Test
     fun `adding two coffees raises the count to 2`() {
         ConsumptionRequests.applyDelta(fixtureUserId(), ConsumptionDeltaDto(1)).requireStatus(200)
@@ -191,10 +191,10 @@ class ConsumptionSystemTests : AbstractSystemTest() {
          * some coffees, but 10 requests often lose none.
          */
         const val CONCURRENT_REQUESTS = 40
-        
+
         /** Price of one coffee in cents, as the requirement states it. */
         const val COFFEE_PRICE_CENTS = 50
-        
+
         /** How long the concurrency test waits for each request. */
         const val TIMEOUT_SECONDS = 30L
     }

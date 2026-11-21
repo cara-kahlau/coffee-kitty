@@ -29,7 +29,7 @@ class CoffeeConsumptionServiceImpl(
     private val coffeeConsumptionDataService: CoffeeConsumptionDataService,
     private val gracePeriod: GracePeriod,
     private val clock: Clock
-    ) : CoffeeConsumptionService {
+) : CoffeeConsumptionService {
     override fun getByUserId(userId: UUID): CoffeeConsumption = coffeeConsumptionDataService.getByUserId(userId)
 
     @Transactional
@@ -71,8 +71,9 @@ class CoffeeConsumptionServiceImpl(
     /** Returns the current UTC time of [clock], truncated to microseconds like the timestamps in the database. */
     private fun now(): LocalDateTime =
         LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC).truncatedTo(ChronoUnit.MICROS)
+
     private companion object {
-    /** Price of one coffee in cents. */
-    const val COFFEE_PRICE_CENTS = 50
+        /** Price of one coffee in cents. */
+        const val COFFEE_PRICE_CENTS = 50
     }
 }

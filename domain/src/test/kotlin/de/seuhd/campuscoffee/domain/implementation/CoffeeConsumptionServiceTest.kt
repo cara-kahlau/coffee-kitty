@@ -72,7 +72,7 @@ class CoffeeConsumptionServiceTest {
         val result = service.applyDelta(userId, 1)
 
         assertThat(result.count).isEqualTo(3)
-        verify(dataService).upsert(consumption(3, coffeeAddedAt))
+        verify(dataService).upsert(consumption(3, coffeeAddedAt).copy(balanceCents = -COFFEE_PRICE_CENTS))
     }
 
     @Test
@@ -84,7 +84,7 @@ class CoffeeConsumptionServiceTest {
 
         service.applyDelta(userId, 1)
 
-        verify(dataService).upsert(consumption(3, open, coffeeAddedAt))
+        verify(dataService).upsert(consumption(3, open, coffeeAddedAt).copy(balanceCents = -COFFEE_PRICE_CENTS))
     }
 
     @Test
@@ -179,5 +179,10 @@ class CoffeeConsumptionServiceTest {
 
         assertThrows<NotFoundException> { service.applyDelta(userId, 1) }
         verify(dataService, never()).upsert(any())
+    }
+
+    private companion object {
+        /** Price of one coffee in cents, as the requirement states it. */
+        const val COFFEE_PRICE_CENTS = 50
     }
 }

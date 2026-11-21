@@ -191,7 +191,10 @@ class ConsumptionSystemTests : AbstractSystemTest() {
          * some coffees, but 10 requests often lose none.
          */
         const val CONCURRENT_REQUESTS = 40
-
+        
+        /** Price of one coffee in cents, as the requirement states it. */
+        const val COFFEE_PRICE_CENTS = 50
+        
         /** How long the concurrency test waits for each request. */
         const val TIMEOUT_SECONDS = 30L
     }

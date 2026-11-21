@@ -36,7 +36,7 @@ class CoffeeConsumptionEntity : Entity() {
     @field:Column(name = "added_at")
     var coffeeTimes: MutableList<LocalDateTime> = mutableListOf()
 
-    @field:Column(name="balance_cents")
+    @field:Column(name = "balance_cents")
     var balanceCents: Int? = null
 
     companion object {

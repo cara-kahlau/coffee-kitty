@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody as ApiRequestBody
 
 /**
  * Controller under `/api/users/{userId}/consumption` that reads the coffee count of a user, adds a coffee, and undoes
- * the most recent coffee. Every endpoint returns the login name and the coffee count of the user as a [ConsumptionDto].
+ * the most recent coffee. Every endpoint returns the login name, the coffee count and the balance in cents of the user as a [ConsumptionDto].
  */
 @Tag(name = "Consumption", description = "Reading a user's coffee count, adding a coffee, and undoing a coffee.")
 @RestController
